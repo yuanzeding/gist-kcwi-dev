@@ -57,13 +57,20 @@ def readCube(config):
     wave = (crval1 + (np.linspace(1, naxis1, naxis1) - crpix1)*dwav)
     
     # Getting the spatial coordinates
+    # Updating to match pixel scale of KCWI small camera - SBC
     origin = [ float(config['READ_DATA']['ORIGIN'].split(',')[0].strip()), float(config['READ_DATA']['ORIGIN'].split(',')[1].strip()) ]
-    xaxis = np.arange(s[2])
-    yaxis = np.arange(s[1])
+#   xaxis = np.arange(s[2])
+#   yaxis = np.arange(s[1])
+#   x, y  = np.meshgrid(xaxis,yaxis)
+#   x     = np.reshape(x,[s[1]*s[2]])
+#   y     = np.reshape(y,[s[1]*s[2]])
+#   pixelsize = 1
+    xaxis = (np.arange(s[2]) - origin[0]) * 0.35
+    yaxis = (np.arange(s[1]) - origin[1]) * 0.35
     x, y  = np.meshgrid(xaxis,yaxis)
     x     = np.reshape(x,[s[1]*s[2]])
     y     = np.reshape(y,[s[1]*s[2]])
-    pixelsize = 1
+    pixelsize = 0.35
 
     logging.info("Extracting spatial information:\n"\
             +loggingBlanks+"* Spatial coordinates are centred to "+str(origin)+"\n"\
