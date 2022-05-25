@@ -83,7 +83,8 @@ def readCube(config):
     logging.info("Shortening spectra to the wavelength range from "+str(config['READ_DATA']['LMIN_TOT'])+"A to "+str(config['READ_DATA']['LMAX_TOT'])+"A.")
 
     # Pass error spectra as variances instead of stddev
-    espec = espec**2
+    # Error spectra appear to be variances already (not stddev) - SBC
+    # espec = espec**2
 
     # Computing the SNR per spaxel
     idx_snr = np.where( np.logical_and( wave >= config['READ_DATA']['LMIN_SNR'], wave <= config['READ_DATA']['LMAX_SNR'] ) )[0]
