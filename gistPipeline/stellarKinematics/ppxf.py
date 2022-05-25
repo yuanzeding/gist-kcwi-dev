@@ -54,8 +54,7 @@ def run_ppxf( templates, log_bin_data, log_bin_error, velscale, start, goodPixel
     try:
         # Call PPXF
         pp = ppxf(templates, log_bin_data, log_bin_error, velscale, start, goodpixels=goodPixels, plot=False, \
-                  quiet=True, moments=nmoments, degree=adeg, mdegree=mdeg, reddening=reddening, lam=np.exp(logLam), velscale_ratio=velscale_ratio, vsyst=offset)
-    
+                  quiet=True, moments=nmoments, degree=adeg, mdegree=mdeg, lam=np.exp(logLam), velscale_ratio=velscale_ratio, vsyst=offset)
         # Make the unconvolved optimal stellar template
         normalized_weights = pp.weights / np.sum( pp.weights )
         optimal_template   = np.zeros( templates.shape[0] )

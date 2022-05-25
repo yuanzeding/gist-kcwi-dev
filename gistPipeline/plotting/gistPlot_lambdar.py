@@ -12,6 +12,7 @@ from matplotlib.tri import Triangulation, TriAnalyzer
 #matplotlib.use('pdf')
 #
 import matplotlib.pyplot       as     plt
+plt.style.use('ekhammer')
 from   mpl_toolkits.axes_grid1 import AxesGrid
 from   matplotlib.ticker       import MultipleLocator, FuncFormatter
 
