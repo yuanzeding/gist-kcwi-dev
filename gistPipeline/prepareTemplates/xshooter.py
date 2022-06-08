@@ -46,11 +46,7 @@ def age_metal_alpha(passedFiles):
     metal_str = []
     alpha_str = []
     for i in range( len(Metal) ):
-        if Metal[i] > 0:
-            mm = 'p'+'{:.2f}'.format(np.abs(Metal[i]))+'T'
-        elif Metal[i] < 0:
-            mm = 'm'+'{:.2f}'.format(np.abs(Metal[i]))+'T'
-        metal_str.append(mm)
+        metal_str.append(Metal[i])
     for i in range( len(Alpha) ):
         if EMILES == False:
             alpha_str.append( 'Ep'+'{:.2f}'.format(Alpha[i]) )
@@ -82,7 +78,7 @@ def prepareSpectralTemplateLibrary(config, lmin, lmax, velscale, LSF_Data, LSF_T
     ssp_head       = hdu_spmod[0].header
     lamRange_spmod = 10*10**(ssp_head['CRVAL1'] + np.array([0., ssp_head['CDELT1']*(ssp_head['NAXIS1'] - ssp_head['CRPIX1'])]))  # wavelength is given in log binned
     
-    ssp_data *= 5567946.09  # data is in flux units, convert t L/Lsun Msun-1 AA-1
+    ssp_data *= 5567946.09  # data is in flux units, convert to L/Lsun Msun-1 AA-1
 
     # Determine length of templates
     template_overhead = np.zeros(2)
@@ -97,7 +93,7 @@ def prepareSpectralTemplateLibrary(config, lmin, lmax, velscale, LSF_Data, LSF_T
 
     # Shorten templates to size of data
     # Reconstruct full original lamRange
-    lamRange_lin = np.arange( lamRange_spmod[0], lamRange_spmod[-1]+ssp_head['CDELT1'], ssp_head['CDELT1'] )
+    lamRange_lin = np.linspace( lamRange_spmod[0], lamRange_spmod[-1], ssp_head['NAXIS1'] )
     # Create new lamRange according to the provided LMIN and LMAX values, according to the module which calls
     constr = np.array([ lmin - template_overhead[0], lmax + template_overhead[1] ])
     idx_lam = np.where( np.logical_and(lamRange_lin > constr[0], lamRange_lin < constr[1] ) )[0]
@@ -120,16 +116,15 @@ def prepareSpectralTemplateLibrary(config, lmin, lmax, velscale, LSF_Data, LSF_T
     # Create an array to store the templates
     sspNew, _, _ = log_rebin(lamRange_spmod, ssp_data, velscale=velscale)
 
-
     # Do NOT sort the templates in any way
     if sortInGrid == False:
-
         # Load templates, convolve and log-rebin them
         templates = np.empty((sspNew.size, ntemplates))
         for j, file in enumerate(sp_models):
             hdu      = fits.open(file)
             ssp_data = np.squeeze(hdu[0].data)[idx_lam]
             ssp_data = gaussian_filter1d(ssp_data, sigma)
+            ssp_data = np.nan_to_num(ssp_data, nan=1.0)
             templates[:, j], logLam_spmod, _ = log_rebin(lamRange_spmod, ssp_data, velscale=velscale)
    
         # Normalise templates in such a way to get mass-weighted results
@@ -149,7 +144,6 @@ def prepareSpectralTemplateLibrary(config, lmin, lmax, velscale, LSF_Data, LSF_T
     
     # Sort the templates in a cube of age, metal, alpha for the SFH module
     elif sortInGrid == True:
-
         # Extract ages, metallicities and alpha from the templates
         logAge, metal, alpha, metal_str, alpha_str, nAges, nMetal, nAlpha, ncomb = age_metal_alpha(sp_models)
 
