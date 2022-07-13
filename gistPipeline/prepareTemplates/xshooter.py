@@ -3,6 +3,7 @@ import os
 import numpy as np
 from astropy.io import fits
 import logging
+import matplotlib.pyplot as plt
 
 from printStatus import printStatus
 
@@ -76,7 +77,7 @@ def prepareSpectralTemplateLibrary(config, lmin, lmax, velscale, LSF_Data, LSF_T
     hdu_spmod      = fits.open(sp_models[0])
     ssp_data       = np.squeeze(hdu_spmod[0].data)
     ssp_head       = hdu_spmod[0].header
-    lamRange_spmod = 10*10**(ssp_head['CRVAL1'] + np.array([0., ssp_head['CDELT1']*(ssp_head['NAXIS1'] - ssp_head['CRPIX1'])]))  # wavelength is given in log binned
+    lamRange_spmod = 10*10**(ssp_head['CRVAL1'] + np.array([0., ssp_head['CDELT1']*(ssp_head['NAXIS1'] - ssp_head['CRPIX1'])]))  # wavelength is given in log binned nm
     
     ssp_data *= 5567946.09  # data is in flux units, convert to L/Lsun Msun-1 AA-1
 
@@ -111,7 +112,7 @@ def prepareSpectralTemplateLibrary(config, lmin, lmax, velscale, LSF_Data, LSF_T
         exit(1)
     else:
         FWHM_dif = np.sqrt( LSF_Data(lamRange_lin[idx_lam])**2 - LSF_Templates(lamRange_lin[idx_lam])**2 )
-        sigma = FWHM_dif/2.355/ssp_head['CDELT1']
+        sigma = FWHM_dif/2.355/0.36
 
     # Create an array to store the templates
     sspNew, _, _ = log_rebin(lamRange_spmod, ssp_data, velscale=velscale)
@@ -134,8 +135,9 @@ def prepareSpectralTemplateLibrary(config, lmin, lmax, velscale, LSF_Data, LSF_T
         # Normalise templates in such a way to get light-weighted results
         if config['PREPARE_TEMPLATES']['NORM_TEMP'] == 'LIGHT':
             for i in range( templates.shape[1] ):
+                print(i)
                 templates[:,i] = templates[:,i] / np.mean(templates[:,i], axis=0)
-    
+                
         printStatus.updateDone("Preparing the stellar population templates")
         logging.info("Prepared the stellar population templates")
     
