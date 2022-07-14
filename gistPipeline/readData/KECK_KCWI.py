@@ -81,8 +81,8 @@ def readCube(config):
     logging.info("Shifting spectra to rest-frame, assuming a redshift of "+str(config['GENERAL']['REDSHIFT']))
 
     # Shorten spectra to required wavelength range
-    lmin  = config['READ_DATA']['LMIN_TOT'] * (1+config['GENERAL']['REDSHIFT'])
-    lmax  = config['READ_DATA']['LMAX_TOT'] * (1+config['GENERAL']['REDSHIFT'])
+    lmin  = config['READ_DATA']['LMIN_TOT']
+    lmax  = config['READ_DATA']['LMAX_TOT']
     idx   = np.where( np.logical_and( wave >= lmin, wave <= lmax ) )[0]
     spec  = spec[idx,:]
     espec = espec[idx,:]

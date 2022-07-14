@@ -92,9 +92,10 @@ def prepareSpectralTemplateLibrary(config, lmin, lmax, velscale, LSF_Data, LSF_T
     else: 
         template_overhead[1] = lamRange_spmod[1] - lmax - 5
 
+
     # Shorten templates to size of data
     # Reconstruct full original lamRange
-    lamRange_lin = np.linspace( lamRange_spmod[0], lamRange_spmod[-1], ssp_head['NAXIS1'] )
+    lamRange_lin = 10*10**((np.arange(len(ssp_data)) - ssp_head['CRPIX1']) * ssp_head['CDELT1'] + ssp_head['CRVAL1'])
     # Create new lamRange according to the provided LMIN and LMAX values, according to the module which calls
     constr = np.array([ lmin - template_overhead[0], lmax + template_overhead[1] ])
     idx_lam = np.where( np.logical_and(lamRange_lin > constr[0], lamRange_lin < constr[1] ) )[0]
@@ -112,10 +113,10 @@ def prepareSpectralTemplateLibrary(config, lmin, lmax, velscale, LSF_Data, LSF_T
         exit(1)
     else:
         FWHM_dif = np.sqrt( LSF_Data(lamRange_lin[idx_lam])**2 - LSF_Templates(lamRange_lin[idx_lam])**2 )
-        sigma = FWHM_dif/2.355/0.36
+        sigma = FWHM_dif/2.355/np.diff(lamRange_lin[idx_lam], prepend=0.0)  # using CDELT here doesn't work bc the templates are in log space; different sigma per pixel in logspace?
 
     # Create an array to store the templates
-    sspNew, _, _ = log_rebin(lamRange_spmod, ssp_data, velscale=velscale)
+    sspNew = np.empty_like(ssp_data)
 
     # Do NOT sort the templates in any way
     if sortInGrid == False:
@@ -124,10 +125,12 @@ def prepareSpectralTemplateLibrary(config, lmin, lmax, velscale, LSF_Data, LSF_T
         for j, file in enumerate(sp_models):
             hdu      = fits.open(file)
             ssp_data = np.squeeze(hdu[0].data)[idx_lam]
+            ssp_data *= 5567946.09
             ssp_data = gaussian_filter1d(ssp_data, sigma)
-            ssp_data = np.nan_to_num(ssp_data, nan=1.0)
-            templates[:, j], logLam_spmod, _ = log_rebin(lamRange_spmod, ssp_data, velscale=velscale)
-   
+            templates[:, j] = ssp_data
+            logLam_spmod = np.log(lamRange_lin[idx_lam])
+
+        np.savetxt('./logLam.txt', logLam_spmod)
         # Normalise templates in such a way to get mass-weighted results
         if config['PREPARE_TEMPLATES']['NORM_TEMP'] == 'MASS':
             templates = templates / np.mean( templates )
@@ -135,8 +138,8 @@ def prepareSpectralTemplateLibrary(config, lmin, lmax, velscale, LSF_Data, LSF_T
         # Normalise templates in such a way to get light-weighted results
         if config['PREPARE_TEMPLATES']['NORM_TEMP'] == 'LIGHT':
             for i in range( templates.shape[1] ):
-                print(i)
                 templates[:,i] = templates[:,i] / np.mean(templates[:,i], axis=0)
+            np.savetxt('./temptest.txt', templates)
                 
         printStatus.updateDone("Preparing the stellar population templates")
         logging.info("Prepared the stellar population templates")
