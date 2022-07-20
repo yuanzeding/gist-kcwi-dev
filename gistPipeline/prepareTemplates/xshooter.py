@@ -130,7 +130,6 @@ def prepareSpectralTemplateLibrary(config, lmin, lmax, velscale, LSF_Data, LSF_T
             templates[:, j] = ssp_data
             logLam_spmod = np.log(lamRange_lin[idx_lam])
 
-        np.savetxt('./logLam.txt', logLam_spmod)
         # Normalise templates in such a way to get mass-weighted results
         if config['PREPARE_TEMPLATES']['NORM_TEMP'] == 'MASS':
             templates = templates / np.mean( templates )
@@ -139,7 +138,6 @@ def prepareSpectralTemplateLibrary(config, lmin, lmax, velscale, LSF_Data, LSF_T
         if config['PREPARE_TEMPLATES']['NORM_TEMP'] == 'LIGHT':
             for i in range( templates.shape[1] ):
                 templates[:,i] = templates[:,i] / np.mean(templates[:,i], axis=0)
-            np.savetxt('./temptest.txt', templates)
                 
         printStatus.updateDone("Preparing the stellar population templates")
         logging.info("Prepared the stellar population templates")
