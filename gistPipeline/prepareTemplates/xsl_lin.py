@@ -24,7 +24,7 @@ def age_metal_alpha(passedFiles):
     for num, s in enumerate(files):
         splits = s.split('_')
         # Ages
-        age = 10**float(splits[2][4:])
+        age = float(splits[2][4:])
 
         # Metals
         metal = float(splits[3][2:])
@@ -46,7 +46,7 @@ def age_metal_alpha(passedFiles):
     metal_str = []
     alpha_str = []
     for i in range( len(Metal) ):
-        metal_str.append(Metal[i])
+        metal_str.append("MH%s" % Metal[i])
     for i in range( len(Alpha) ):
         if EMILES == False:
             alpha_str.append( 'Ep'+'{:.2f}'.format(Alpha[i]) )
