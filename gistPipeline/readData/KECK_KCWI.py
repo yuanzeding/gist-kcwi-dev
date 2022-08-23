@@ -40,21 +40,31 @@ def readCube(config):
     # Reading the cube
     hdu   = fits.open(config['GENERAL']['INPUT'])
     hdr   = hdu[0].header
-    data  = hdu[0].data
-    s     = np.shape(data)
-    spec  = np.reshape(data,[s[0],s[1]*s[2]])
-
-    # Read the error spectra
-    logging.info("Reading the error spectra from the cube")
-    stat  = hdu[2].data
-    espec = np.reshape(stat,[s[0],s[1]*s[2]])
-
+    
     # Getting the wavelength info
     naxis1 = int(hdr['naxis3'])
     crval1 = float(hdr['crval3'])
     crpix1 = float(hdr['crpix3'])
     dwav = float(hdr['cd3_3'])
     wave = (crval1 + (np.linspace(1, naxis1, naxis1) - crpix1)*dwav)
+    
+    wavegoodl = hdr['WAVGOOD0']
+    wavegoodr = hdr['WAVGOOD1']
+    
+    wavemask = (wave > wavegoodl) * (wave < wavegoodr)
+    wave = wave[wavemask]
+    
+    data  = hdu[0].data
+    data = data[wavemask, :, :]
+    s     = np.shape(data)
+    spec  = np.reshape(data,[s[0],s[1]*s[2]])
+
+    # Read the error spectra
+    logging.info("Reading the error spectra from the cube")
+    stat  = hdu[2].data
+    stat = stat[wavemask, :, :]
+    espec = np.reshape(stat,[s[0],s[1]*s[2]])
+
     
     # Getting the spatial coordinates
     # Updating to match pixel scale of KCWI small camera - SBC

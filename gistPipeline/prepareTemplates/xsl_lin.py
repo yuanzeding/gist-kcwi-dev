@@ -3,6 +3,7 @@ import os
 import numpy as np
 from astropy.io import fits
 import logging
+import matplotlib.pyplot as plt
 
 from printStatus import printStatus
 
@@ -15,7 +16,9 @@ def age_metal_alpha(passedFiles):
     from standard XSHOOTER filenames.
     """
 
-    out = np.zeros((len(passedFiles),3)); out[:,:] = np.nan
+    out = np.zeros([len(passedFiles),3])
+    out[:,:] = np.nan
+
 
     files = []
     for i in range( len(passedFiles) ):
@@ -27,14 +30,18 @@ def age_metal_alpha(passedFiles):
         age = float(splits[2][4:])
 
         # Metals
-        metal = float(splits[3][2:])
-
+        metal = splits[3][2:]
+        if "-" in metal:
+            metal = -float(metal[1:])
+        else:
+            metal = float(metal)
+        
         EMILES = True
 
         alpha = 0.0
 
         out[num,:] = age, metal, alpha
-
+    
     Age   = np.unique( out[:,0] )
     Metal = np.unique( out[:,1] )
     Alpha = np.unique( out[:,2] )
@@ -51,7 +58,7 @@ def age_metal_alpha(passedFiles):
         if EMILES == False:
             alpha_str.append( 'Ep'+'{:.2f}'.format(Alpha[i]) )
         elif EMILES == True:
-            alpha_str = ['baseFe']
+            alpha_str = [Alpha[i]]
 
     return( np.log10(Age), Metal, Alpha, metal_str, alpha_str, nAges, nMetal, nAlpha, ncomb )
 
@@ -147,20 +154,21 @@ def prepareSpectralTemplateLibrary(config, lmin, lmax, velscale, LSF_Data, LSF_T
         # Extract ages, metallicities and alpha from the templates
         logAge, metal, alpha, metal_str, alpha_str, nAges, nMetal, nAlpha, ncomb = age_metal_alpha(sp_models)
 
-        templates          = np.zeros((sspNew.size, nAges, nMetal, nAlpha))
+        templates          = np.zeros([sspNew.size, nAges, nMetal, nAlpha])
         templates[:,:,:,:] = np.nan
     
         # Arrays to store properties of the models
-        logAge_grid = np.empty((nAges, nMetal, nAlpha))
-        metal_grid  = np.empty((nAges, nMetal, nAlpha))
-        alpha_grid  = np.empty((nAges, nMetal, nAlpha))
+        logAge_grid = np.empty([nAges, nMetal, nAlpha])
+        metal_grid  = np.empty([nAges, nMetal, nAlpha])
+        alpha_grid  = np.empty([nAges, nMetal, nAlpha])
+
     
         # Sort the templates in the cube of age, metal, alpha
         # This sorts for alpha
         for i, a in enumerate(alpha_str):
             # This sorts for metals
             for k, mh in enumerate(metal_str):
-                files = [s for s in sp_models if (mh in s and a in s)]
+                files = [s for s in sp_models if ('MH'+str(mh) in s)]
                 # This sorts for ages
                 for j, filename in enumerate(files):
                     hdu = fits.open(filename)
@@ -176,7 +184,7 @@ def prepareSpectralTemplateLibrary(config, lmin, lmax, velscale, LSF_Data, LSF_T
                     if config['PREPARE_TEMPLATES']['NORM_TEMP'] == 'LIGHT':
                         templates[:, j, k, i] = sspNew / np.mean(sspNew)
                     else:
-                        templates[:, j, k, i] = sspNew 
+                        templates[:, j, k, i] = sspNew
     
         # Normalise templates for mass-weighted results
         if config['PREPARE_TEMPLATES']['NORM_TEMP'] == 'MASS':
@@ -184,6 +192,7 @@ def prepareSpectralTemplateLibrary(config, lmin, lmax, velscale, LSF_Data, LSF_T
 
         printStatus.updateDone("Preparing the stellar population templates")
         logging.info("Prepared the stellar population templates")
+
     
         return(templates, [lamRange_spmod[0],lamRange_spmod[1]], logLam2, ntemplates, logAge_grid, metal_grid, alpha_grid, ncomb, nAges, nMetal, nAlpha)
 
