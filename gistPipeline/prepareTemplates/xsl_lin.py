@@ -53,14 +53,14 @@ def age_metal_alpha(passedFiles):
     metal_str = []
     alpha_str = []
     for i in range( len(Metal) ):
-        metal_str.append("MH%s" % Metal[i])
+        metal_str.append(Metal[i])
     for i in range( len(Alpha) ):
         if EMILES == False:
             alpha_str.append( 'Ep'+'{:.2f}'.format(Alpha[i]) )
         elif EMILES == True:
             alpha_str = [Alpha[i]]
 
-    return( np.log10(Age), Metal, Alpha, metal_str, alpha_str, nAges, nMetal, nAlpha, ncomb )
+    return( Age, Metal, Alpha, metal_str, alpha_str, nAges, nMetal, nAlpha, ncomb )
 
 
 def prepareSpectralTemplateLibrary(config, lmin, lmax, velscale, LSF_Data, LSF_Templates, sortInGrid):
@@ -193,7 +193,7 @@ def prepareSpectralTemplateLibrary(config, lmin, lmax, velscale, LSF_Data, LSF_T
         printStatus.updateDone("Preparing the stellar population templates")
         logging.info("Prepared the stellar population templates")
 
-    
+        print(logLam2)
         return(templates, [lamRange_spmod[0],lamRange_spmod[1]], logLam2, ntemplates, logAge_grid, metal_grid, alpha_grid, ncomb, nAges, nMetal, nAlpha)
 
 
