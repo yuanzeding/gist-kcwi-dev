@@ -12,11 +12,11 @@ from matplotlib.tri import Triangulation, TriAnalyzer
 #matplotlib.use('pdf')
 #
 import matplotlib.pyplot       as     plt
-plt.style.use('ekhammer')
 from   mpl_toolkits.axes_grid1 import AxesGrid
 from   matplotlib.ticker       import MultipleLocator, FuncFormatter
 
 from plotbin.sauron_colormap import register_sauron_colormap
+from gistPipeline.plotting._plotutils import _inside_idx, _log_flux, _flux_levels
 register_sauron_colormap()
 
 # Make plotting routine python 2 and 3 compatible
@@ -80,7 +80,7 @@ def plotMaps(outdir, RESOLUTION, INTERACTIVE=False, vminmax=np.zeros((4,2)), con
 
     # Read bintable
     table_hdu   = fits.open(os.path.join(outdir,rootname)+'_table.fits')
-    idx_inside  = np.where( table_hdu[1].data.BIN_ID >= 0         )[0]
+    idx_inside  = _inside_idx(table_hdu, os.path.join(outdir, rootname))
     X           = np.array( table_hdu[1].data.X[idx_inside]      ) * -1
     Y           = np.array( table_hdu[1].data.Y[idx_inside]      )
     FLUX        = np.array( table_hdu[1].data.FLUX[idx_inside]   )
@@ -166,8 +166,9 @@ def plotMaps(outdir, RESOLUTION, INTERACTIVE=False, vminmax=np.zeros((4,2)), con
         # Plot contours
         XY_Triangulation = Triangulation(X-pixelsize/2, Y-pixelsize/2)                      # Create a mesh from a Delaunay triangulation
         XY_Triangulation.set_mask( TriAnalyzer(XY_Triangulation).get_flat_tri_mask(0.01) )  # Remove bad triangles at the border of the field-of-view
-        levels = np.arange( np.min(np.log10( FLUX )) + contour_offset, np.max(np.log10( FLUX )), 0.2 )
-        grid[iterate].tricontour(XY_Triangulation, np.log10(FLUX), levels=levels, linewidths=1, colors='k')
+        levels = _flux_levels(FLUX, contour_offset)
+        if len(levels) > 0:
+            grid[iterate].tricontour(XY_Triangulation, _log_flux(FLUX), levels=levels, linewidths=1, colors='k')
 
         # Label vmin and vmax
         if iterate in [0,1,2]: 

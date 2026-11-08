@@ -22,7 +22,7 @@ PURPOSE:
 
 
 
-def sn_func(index, signal=None, noise=None, covar_vor=0.00 ):
+def sn_func(index, signal=None, noise=None, covar_vor=0.00, cov_c=1., cov_nmax=None, cov_table=None ):
     """
        This function is passed to the Voronoi binning routine of Cappellari &
        Copin 2003 (ui.adsabs.harvard.edu/?#abs/2003MNRAS.342..345C) and used to
@@ -40,7 +40,9 @@ def sn_func(index, signal=None, noise=None, covar_vor=0.00 ):
     # Account for spatial correlations in the noise by applying an empirical
     # equation (see e.g. Garcia-Benito et al. 2015;
     # ui.adsabs.harvard.edu/?#abs/2015A&A...576A.135G)
-    sn /= 1 + covar_vor * np.log10(index.size)
+    # SPATIAL_BINNING COV_C / COV_NMAX: overall factor and saturation (noisetools.covariance_factor)
+    from gistPipeline.auxiliary.noisetools import covariance_factor
+    sn /= covariance_factor(index.size, covar_vor, cov_c, cov_nmax, cov_table)
 
     return(sn)
 
@@ -58,7 +60,10 @@ def generateSpatialBins(config, cube):
     """
     # Pass a function for the SNR calculation to the Voronoi-binning algorithm,
     # in order to account for spatial correlations in the noise
-    sn_func_covariances = functools.partial( sn_func, covar_vor=config['SPATIAL_BINNING']['COVARIANCE'] )
+    from gistPipeline.auxiliary.noisetools import covariance_options
+    covar, cov_c, cov_nmax, cov_table = covariance_options(config['SPATIAL_BINNING'], config['GENERAL']['CONFIG_DIR'])
+    sn_func_covariances = functools.partial( sn_func, covar_vor=covar, cov_c=cov_c, cov_nmax=cov_nmax,
+                                             cov_table=cov_table )
 
     # Generate the Voronoi bins
     printStatus.running("Defining the Voronoi bins")
@@ -105,6 +110,7 @@ def generateSpatialBins(config, cube):
             print("The Voronoi-binning routine of Cappellari & Copin (2003) returned the following error: \n"+str(e))
             logging.error("Defining the Voronoi bins failed. The Voronoi-binning routine of Cappellari & Copin "+\
                           "(2003) returned the following error: \n"+str(e))
+            logging.error("")
             return("SKIP")
 
     # Find the nearest Voronoi bin for the pixels outside the Voronoi region

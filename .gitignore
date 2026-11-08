@@ -11,3 +11,10 @@ build/
 *.egg-info/
 *.egg
 *.DS_Store
+
+# kcwi-dev: editing backups and notebook/macOS clutter
+*.bak
+*.bak_*
+*.pre_fixes
+._*
+.ipynb_checkpoints/

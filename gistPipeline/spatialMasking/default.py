@@ -25,7 +25,8 @@ def generateSpatialMask(config, cube):
     maskedMask = applyMaskFile(config, cube)
 
     # Create combined mask
-    combinedMaskIdx = np.where( np.logical_or.reduce((maskedDefunct == True, maskedSNR == True, maskedMask == True)) )[0]
+    combinedMaskIdx = np.where((maskedDefunct == True) | (maskedSNR == True) | (maskedMask == True))[0]
+    #
     combinedMask = np.zeros(len(cube['snr']), dtype=bool)
     combinedMask[combinedMaskIdx] = True
     logging.info("Combined mask: "+str(len(combinedMaskIdx))+" spaxels are rejected.")
@@ -43,8 +44,11 @@ def maskDefunctSpaxels(cube):
     negative median. 
     """
     # Select defunct spaxels
-    idx_good = np.where( np.logical_and( np.all(np.isnan(cube['spec']) == False, axis=0), np.nanmedian(cube['spec'], axis=0) >  0.0 ))[0]
-    idx_bad  = np.where( np.logical_or(  np.any(np.isnan(cube['spec']) == True,  axis=0), np.nanmedian(cube['spec'], axis=0) <= 0.0 ))[0]
+    good_mask = (np.any(np.isnan(cube['spec']) == False, axis=0)) * (np.nanmedian(cube['spec'], axis=0) >  0.0) * (cube['snr'] > 0.0)
+    idx_good = np.where(good_mask == True)[0]
+    
+    bad_mask = (np.any(np.isnan(cube['spec']) == True,  axis=0)) | (np.nanmax(cube['spec'], axis=0) <= 1e-5) | (cube['snr'] <= 1e-5) | (np.nanmedian(np.abs(cube['spec']), axis=0) >= 1e2)
+    idx_bad  = np.where(bad_mask == True)[0]
     
     logging.info("Masking defunct spaxels: "+str(len(idx_bad))+" spaxels are rejected.")
 
@@ -57,13 +61,14 @@ def maskDefunctSpaxels(cube):
 
 def applySNRThreshold(snr, signal, min_snr):
     """ 
-    Mask those spaxels that are above the isophote level with a mean 
+    Mask those spaxels that are above the isophote level with a mean
     signal-to-noise ratio of MIN_SNR. 
     """
-    idx_snr = np.where( np.abs(snr - min_snr) < 2. )[0]
+    idx_snr = np.where( np.abs(snr - min_snr) < 2.0 )[0]
     meanmin_signal = np.mean( signal[idx_snr] )
     idx_inside  = np.where( signal >= meanmin_signal )[0]
     idx_outside = np.where( signal < meanmin_signal )[0]
+
 
     if len(idx_inside) == 0 and len(idx_outside) == 0:
         idx_inside = np.arange( len(snr) )
@@ -92,7 +97,7 @@ def applyMaskFile(config, cube):
         maskfile = os.path.join(os.path.dirname(config['GENERAL']['INPUT']), config['SPATIAL_MASKING']['MASK'])
     
         if os.path.isfile(maskfile) == True:
-            mask = fits.open(maskfile)[1].data
+            mask = fits.open(maskfile)[0].data
             s = np.shape(mask)
             mask = np.reshape(mask, s[0]*s[1])
         
@@ -131,13 +136,14 @@ def saveMask(combinedMask, maskedDefunct, maskedSNR, maskedMask, config):
     tbhdu = fits.BinTableHDU.from_columns(fits.ColDefs(cols))
     tbhdu.name = "MASKFILE"
 
+
     # Create HDU list and write to file
     tbhdu.header['COMMENT'] = "Value 0  -->  unmasked"
     tbhdu.header['COMMENT'] = "Value 1  -->  masked"
     HDUList = fits.HDUList([priHDU, tbhdu])
     HDUList.writeto(outfits, overwrite=True)
 
-    printStatus.updateDone("Writing: "+config['GENERAL']['RUN_ID']+"_mask.fits")
+    printStatus.updateDone("Writing: "+config['GENERAL']['RUN_ID']+"_mask.fits", np.where(combinedMask == 0))
     logging.info("Wrote mask file: "+outfits)
 
     return(None)

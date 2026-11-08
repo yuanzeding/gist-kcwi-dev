@@ -9,6 +9,16 @@ import matplotlib.ticker as ticker
 
 
 
+
+def _lamIndex(lam_all, lam_sub):
+    """
+    Indices of lam_sub within lam_all. The old code took np.arange of the
+    one-element arrays np.where returned, which newer numpy refuses, and needed
+    the two LOGLAM grids to agree to the last bit.
+    """
+    i0 = int(np.argmin(np.abs(lam_all - lam_sub[0])))
+    return np.arange(i0, i0 + len(lam_sub))
+
 # ============================================================================ #
 #                               P L O T   M A P                                #
 # ============================================================================ #
@@ -20,7 +30,10 @@ def plotMap(self, module, maptype):
 
     # Plot all spaxels, or only those in Voronoi-region
     if self.restrict2voronoi == 2: 
-        idxMap = np.where( self.table.BIN_ID >= 0 )[0]
+        sel = self.table.BIN_ID >= 0
+        if getattr(self, 'MASK', False):     # masked spaxels next to bin 0 also have BIN_ID 0
+            sel = sel & (np.asarray(self.Mask.MASK) == 0)
+        idxMap = np.where( sel )[0]
     else:
         idxMap = np.arange( len(self.table.BIN_ID) )
 
@@ -67,8 +80,8 @@ def plotMap(self, module, maptype):
     ymin = np.nanmin(self.table.Y[idxMap])-1;  ymax = np.nanmax(self.table.Y[idxMap])+1
     npixels_x = int( np.round( (xmax - xmin)/self.pixelsize ) + 1 )
     npixels_y = int( np.round( (ymax - ymin)/self.pixelsize ) + 1 )
-    i = np.array( np.round( (self.table.X[idxMap] - xmin)/self.pixelsize ), dtype=np.int )
-    j = np.array( np.round( (self.table.Y[idxMap] - ymin)/self.pixelsize ), dtype=np.int )
+    i = np.array( np.round( (self.table.X[idxMap] - xmin)/self.pixelsize ), dtype=int )
+    j = np.array( np.round( (self.table.Y[idxMap] - ymin)/self.pixelsize ), dtype=int )
     image = np.full( (npixels_x, npixels_y), np.nan )
     image[i,j] = val
 
@@ -84,7 +97,7 @@ def plotMap(self, module, maptype):
     elif maptype == 'V':       cbar.set_label("v [km/s]")
     elif maptype == 'SIGMA':   cbar.set_label("sigma [km/s]")
     elif maptype == 'AGE':     cbar.set_label("Age [Gyr]")
-    elif maptype == 'METALS':  cbar.set_label("[M/H]") 
+    elif maptype in ('METAL', 'METALS'): cbar.set_label("[M/H]") 
     elif maptype == 'ALPHA':   cbar.set_label("[Mg/Fe]") 
     else:                      cbar.set_label(maptype)
 
@@ -217,9 +230,7 @@ def plotSpectraKIN(self, spectra, bestfit, goodpix, panel):
     offset = np.min(bestfit[:]) - (np.max(bestfit[:]) - np.min(bestfit[:]))*0.10
 
     # Plot spectra
-    idxMin = np.where( self.Lambda == self.kinLambda[0]  )[0]
-    idxMax = np.where( self.Lambda == self.kinLambda[-1] )[0]
-    idxLam = np.arange(idxMin, idxMax+1)
+    idxLam = _lamIndex(self.Lambda, self.kinLambda)
 
     self.axes[panel].plot(self.Lambda[idxLam], spectra[idxLam],               color='k',         linewidth=2)
     self.axes[panel].plot(self.kinLambda, bestfit[:],                         color='crimson',   linewidth=2)
@@ -259,9 +270,7 @@ def plotSpectraGAS(self, spectra, bestfit, goodpix, panel):
     offset = np.min(bestfit[:]) - (np.max(bestfit[:]) - np.min(bestfit[:]))*0.10
 
     # Plot spectra
-    idxMin = np.where( self.Lambda == self.gasLambda[0]  )[0]
-    idxMax = np.where( self.Lambda == self.gasLambda[-1] )[0]
-    idxLam = np.arange(idxMin, idxMax+1)
+    idxLam = _lamIndex(self.Lambda, self.gasLambda)
 
     if self.gasLevel == 'BIN': 
         self.axes[panel].plot(self.gasLambda, self.EmissionSubtractedSpectraBIN[self.idxBinShort,:], color='orange', linewidth=2)
@@ -306,14 +315,10 @@ def plotSpectraSFH(self, spectra, bestfit, goodpix, panel):
     offset = np.min(bestfit[:]) - (np.max(bestfit[:]) - np.min(bestfit[:]))*0.10
 
     # Plot spectra
-    idxMin = np.where( self.Lambda == self.sfhLambda[0]  )[0]
-    idxMax = np.where( self.Lambda == self.sfhLambda[-1] )[0]
-    idxLam = np.arange(idxMin, idxMax+1)
+    idxLam = _lamIndex(self.Lambda, self.sfhLambda)
 
     try:
-        idxMin     = np.where( self.gasLambda == self.sfhLambda[0]  )[0]
-        idxMax     = np.where( self.gasLambda == self.sfhLambda[-1] )[0]
-        idxLamGand = np.arange(idxMin, idxMax+1)
+        idxLamGand = _lamIndex(self.gasLambda, self.sfhLambda)
         self.axes[panel].plot(self.gasLambda[idxLamGand], self.EmissionSubtractedSpectraBIN[self.idxBinShort,idxLamGand],                    color='orange',    linewidth=2)
         self.axes[panel].plot(self.gasLambda[idxLamGand], self.EmissionSubtractedSpectraBIN[self.idxBinShort,idxLamGand] - bestfit + offset, color='limegreen', linewidth=2)
     except:

@@ -41,7 +41,10 @@ def spatialBinning_Module(config, cube):
 
     # Execute the chosen spatialBinning routine
     try:
-        module.generateSpatialBins(config, cube)
+        # the routine returns "SKIP" when binning fails (e.g. too little S/N in total);
+        # it used to be ignored, so prepareSpectra then crashed on the missing table
+        if module.generateSpatialBins(config, cube) == "SKIP":
+            return("SKIP")
     except Exception as e:
         logging.critical(e, exc_info=True)
         message = "Spatial binning routine "+config['SPATIAL_BINNING']['METHOD']+" failed."

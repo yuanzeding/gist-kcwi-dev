@@ -27,7 +27,7 @@ def age_metal_alpha(passedFiles):
     for num, s in enumerate(files):
         splits = s.split('_')
         # Ages
-        age = float(splits[2][4:])
+        age = 10**(float(splits[2][4:])-9)  # age in Gyr
 
         # Metals
         metal = splits[3][2:]
@@ -60,7 +60,7 @@ def age_metal_alpha(passedFiles):
         elif EMILES == True:
             alpha_str = [Alpha[i]]
 
-    return( Age, Metal, Alpha, metal_str, alpha_str, nAges, nMetal, nAlpha, ncomb )
+    return( np.log10(Age), Metal, Alpha, metal_str, alpha_str, nAges, nMetal, nAlpha, ncomb )
 
 
 def prepareSpectralTemplateLibrary(config, lmin, lmax, velscale, LSF_Data, LSF_Templates, sortInGrid):
@@ -193,7 +193,6 @@ def prepareSpectralTemplateLibrary(config, lmin, lmax, velscale, LSF_Data, LSF_T
         printStatus.updateDone("Preparing the stellar population templates")
         logging.info("Prepared the stellar population templates")
 
-        print(logLam2)
         return(templates, [lamRange_spmod[0],lamRange_spmod[1]], logLam2, ntemplates, logAge_grid, metal_grid, alpha_grid, ncomb, nAges, nMetal, nAlpha)
 
 

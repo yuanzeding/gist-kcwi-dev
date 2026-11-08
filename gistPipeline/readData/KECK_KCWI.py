@@ -61,7 +61,7 @@ def readCube(config):
 
     # Read the error spectra
     logging.info("Reading the error spectra from the cube")
-    stat  = hdu[2].data
+    stat  = hdu[1].data
     stat = stat[wavemask, :, :]
     espec = np.reshape(stat,[s[0],s[1]*s[2]])
 

@@ -2,8 +2,14 @@ import matplotlib.pyplot     as plt
 from matplotlib.gridspec     import GridSpec
 from mpl_toolkits.axes_grid1 import make_axes_locatable
 
-from matplotlib.backends.backend_qtagg import FigureCanvasQTAgg    as FigureCanvas
-from matplotlib.backends.backend_qtagg import NavigationToolbar2QT as NavigationToolbar
+# backend_qtagg exists from matplotlib 3.5 on; older versions (3.3.4 in gist-dev) only
+# have backend_qt5agg. Either works with PyQt5.
+try:
+    from matplotlib.backends.backend_qtagg import FigureCanvasQTAgg    as FigureCanvas
+    from matplotlib.backends.backend_qtagg import NavigationToolbar2QT as NavigationToolbar
+except ImportError:
+    from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg    as FigureCanvas
+    from matplotlib.backends.backend_qt5agg import NavigationToolbar2QT as NavigationToolbar
 
 from PyQt5 import QtCore, QtGui, QtWidgets as pyqt
 

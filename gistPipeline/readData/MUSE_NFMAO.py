@@ -7,7 +7,7 @@ import logging
 from printStatus import printStatus
 
 from gistPipeline.readData    import der_snr as der_snr
-
+from mpdaf.obj import airtovac
 
 
 # ======================================
@@ -57,8 +57,15 @@ def readCube(config):
             espec[:,i] = der_snr.der_snr( spec[:,i] )
 
     # Getting the wavelength info
-    wave = hdr['CRVAL3']+(np.arange(s[0]))*hdr['CD3_3']
     
+    if hdr['CTYPE3'] == 'AWAV':
+        awave = hdr['CRVAL3']+(np.arange(s[0]))*hdr['CD3_3']
+        idx_laser = np.where( np.logical_and( awave > 5780 , awave < 6050 ) )[0]
+        wave = airtovac(awave)
+        print("Air wavelength detected. Converting to vacuum wavelength.")
+    else:
+        wave = hdr['CRVAL3']+(np.arange(s[0]))*hdr['CD3_3']
+        idx_laser          = np.where( np.logical_and( wave > 5780 / (1+config['GENERAL']['REDSHIFT']), wave < 6050 / (1+config['GENERAL']['REDSHIFT'])) )[0]
     # Getting the spatial coordinates
     origin = [ float(config['READ_DATA']['ORIGIN'].split(',')[0].strip()), float(config['READ_DATA']['ORIGIN'].split(',')[1].strip()) ]
     xaxis = (np.arange(s[2]) - origin[0]) * hdr['CD2_2']*3600.0
@@ -86,10 +93,15 @@ def readCube(config):
     logging.info("Shortening spectra to the wavelength range from "+str(config['READ_DATA']['LMIN_TOT'])+"A to "+str(config['READ_DATA']['LMAX_TOT'])+"A.")
 
     # Computing the SNR per spaxel
-    idx_snr   = np.where( np.logical_and.reduce([ \
+    if hdr['CTYPE3']=='AWAV':
+        idx_snr   = np.where( np.logical_and.reduce([ \
         wave >= config['READ_DATA']['LMIN_SNR'], \
-        wave <= config['READ_DATA']['LMAX_SNR'], \
-        np.logical_or( wave < 5780/(1+config['GENERAL']['REDSHIFT']), wave > 6050/(1+config['GENERAL']['REDSHIFT'])) ]))[0]
+        wave <= config['READ_DATA']['LMAX_SNR'] ]))[0]
+    else:
+        idx_snr   = np.where( np.logical_and.reduce([ \
+            wave >= config['READ_DATA']['LMIN_SNR'], \
+            wave <= config['READ_DATA']['LMAX_SNR'], \
+            np.logical_or( wave < 5780/(1+config['GENERAL']['REDSHIFT']), wave > 6050/(1+config['GENERAL']['REDSHIFT'])) ]))[0]
     signal  = np.nanmedian(spec[idx_snr,:],axis=0)
     if len(hdu) == 3:
         noise  = np.abs(np.nanmedian(np.sqrt(espec[idx_snr,:]),axis=0))
@@ -99,7 +111,6 @@ def readCube(config):
     logging.info("Computing the signal-to-noise ratio in the wavelength range from "+str(config['READ_DATA']['LMIN_SNR'])+"A to "+str(config['READ_DATA']['LMAX_SNR'])+"A, while ignoring the wavelength range affected by the LGS.")
 
     # Replacing the np.nan in the laser region by the median of the spectrum
-    idx_laser          = np.where( np.logical_and( wave > 5780 / (1+config['GENERAL']['REDSHIFT']), wave < 6050 / (1+config['GENERAL']['REDSHIFT'])) )[0]
     spec[idx_laser,:]  = signal
     espec[idx_laser,:] = noise
     logging.info("Replacing the spectral region affected by the LGS (5780A-6050A) with the median signal of the spectra.")

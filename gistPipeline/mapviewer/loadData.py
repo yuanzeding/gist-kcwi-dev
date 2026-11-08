@@ -12,8 +12,6 @@ def loadData(self):
         for i in range( len(self.axes) ):
             self.axes[i].cla()
         self.cax.cla()
-
-        self.cax3.cla()
         self.cax4.cla()
     except: 
         pass

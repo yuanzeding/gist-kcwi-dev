@@ -12,11 +12,11 @@ from matplotlib.tri import Triangulation, TriAnalyzer
 #matplotlib.use('pdf')
 #
 import matplotlib.pyplot       as     plt
-plt.style.use('ekhammer')
 from   mpl_toolkits.axes_grid1 import AxesGrid
 from   matplotlib.ticker       import MultipleLocator, FuncFormatter
 
 from plotbin.sauron_colormap import register_sauron_colormap
+from gistPipeline.plotting._plotutils import _inside_idx, _log_flux, _flux_levels
 register_sauron_colormap()
 
 
@@ -31,6 +31,14 @@ PURPOSE:
   pipeline, but can also be run independently of the pipeline. 
 """
 
+
+
+def _tex_escape(s):
+    """The run name goes into a LaTeX title: escape what LaTeX treats as special (an
+    underscore in RUN_ID, e.g. 'LEDA66688bin35_v2', otherwise stops the whole figure)."""
+    for c in ('_', '%', '&', '#', '$'):
+        s = s.replace(c, '\\' + c)
+    return s
 
 def TicklabelFormatter(x, pos):
     return( "${}$".format(int(x)).replace("-", r"\textendash") )
@@ -65,7 +73,7 @@ def plotMaps(flag, outdir, INTERACTIVE=False, vminmax=np.zeros((4,2)), contour_o
 
     # Read bintable
     table_hdu   = fits.open(os.path.join(outdir,rootname)+'_table.fits')
-    idx_inside  = np.where( table_hdu[1].data.BIN_ID >= 0         )[0]
+    idx_inside  = _inside_idx(table_hdu, os.path.join(outdir, rootname))
     X           = np.array( table_hdu[1].data.X[idx_inside]      ) * -1
     Y           = np.array( table_hdu[1].data.Y[idx_inside]      )
     FLUX        = np.array( table_hdu[1].data.FLUX[idx_inside]   )
@@ -176,8 +184,9 @@ def plotMaps(flag, outdir, INTERACTIVE=False, vminmax=np.zeros((4,2)), contour_o
         # Plot contours
         XY_Triangulation = Triangulation(X-pixelsize/2, Y-pixelsize/2)                      # Create a mesh from a Delaunay triangulation
         XY_Triangulation.set_mask( TriAnalyzer(XY_Triangulation).get_flat_tri_mask(0.01) )  # Remove bad triangles at the border of the field-of-view
-        levels = np.arange( np.min(np.log10( FLUX )) + contour_offset, np.max(np.log10( FLUX )), 0.2 )
-        grid[iterate].tricontour(XY_Triangulation, np.log10(FLUX), levels=levels, linewidths=1, colors='k')
+        levels = _flux_levels(FLUX, contour_offset)
+        if len(levels) > 0:
+            grid[iterate].tricontour(XY_Triangulation, _log_flux(FLUX), levels=levels, linewidths=1, colors='k')
 
         # Label vmin and vmax
         if iterate in [0,1,2]: 
@@ -191,7 +200,7 @@ def plotMaps(flag, outdir, INTERACTIVE=False, vminmax=np.zeros((4,2)), contour_o
 
     # Set age, metallicity labels
     grid[0].text(0.02,  0.98,  r'\textbf{Age} $\mathrm{[Gyr]}$',  horizontalalignment='left',  verticalalignment='top', transform = grid[0].transAxes, fontsize=16)
-    grid[0].text(0.985, 0.975, r'\textbf{{{}}}'.format(rootname), horizontalalignment='right', verticalalignment='top', transform = grid[0].transAxes, fontsize=16)    
+    grid[0].text(0.985, 0.975, r'\textbf{{{}}}'.format(_tex_escape(rootname)), horizontalalignment='right', verticalalignment='top', transform = grid[0].transAxes, fontsize=16)    
     grid[1].text(0.02,  0.98,  r'\textbf{[M/H]}',                 horizontalalignment='left',  verticalalignment='top', transform = grid[1].transAxes, fontsize=16)
     if nplots == 3:
         grid[2].text(0.02,  0.98,  r'\textbf{[$\alpha$/Fe]}',     horizontalalignment='left',  verticalalignment='top', transform = grid[2].transAxes, fontsize=16)

@@ -43,7 +43,21 @@ setup(name='gistPipeline',
       python_requires='==3.6.*',
       entry_points={
         'console_scripts': [
-            'gistPipeline        = gistPipeline.MainPipeline:main'
+            'gistPipeline        = gistPipeline.MainPipeline:main',
+            # tools/ scripts (gistPipeline/cli.py runs them from the source tree)
+            'gist_prep           = gistPipeline.cli:gist_prep',
+            'run_gist            = gistPipeline.cli:run_gist',
+            'gist_regul          = gistPipeline.cli:gist_regul',
+            'gist_snrcheck       = gistPipeline.cli:gist_snrcheck',
+            'gist_view           = gistPipeline.cli:gist_view',
+            'gist_replot         = gistPipeline.cli:gist_replot',
+            'gist_fitresid       = gistPipeline.cli:gist_fitresid',
+            'cube_windows        = gistPipeline.cli:cube_windows',
+            'kcwi_skylevel       = gistPipeline.cli:kcwi_skylevel',
+            'kcwi_dichroic_step  = gistPipeline.cli:kcwi_dichroic_step',
+            'kcwi_sync_bifrost   = gistPipeline.cli:kcwi_sync_bifrost',
+            'get_ssp             = gistPipeline.cli:get_ssp',
+            'kcwi_covar          = gistPipeline.cli:kcwi_covar',
             ],
         'gui_scripts': [
             'Mapviewer           = gistPipeline.Mapviewer:main',

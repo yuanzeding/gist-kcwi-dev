@@ -10,6 +10,7 @@ from printStatus import printStatus
 
 from gistPipeline.prepareTemplates import _prepareTemplates
 from gistPipeline.auxiliary import _auxiliary
+from gistPipeline.auxiliary import noisetools as _noise
 
 from ppxf.ppxf import ppxf
 
@@ -52,6 +53,9 @@ def run_ppxf( templates, log_bin_data, log_bin_error, velscale, start, goodPixel
     printStatus.progressBar( i, nbins, barLength=50 )
 
     try:
+        # Pixels without data in this bin (gap, long masked runs) leave the fit
+        goodPixels = _noise.usable_pixels(goodPixels, log_bin_error)
+
         # Call PPXF
         pp = ppxf(templates, log_bin_data, log_bin_error, velscale, start, goodpixels=goodPixels, plot=False, \
                   quiet=True, moments=nmoments, degree=adeg, mdegree=mdeg, lam=np.exp(logLam), velscale_ratio=velscale_ratio, vsyst=offset)
@@ -82,7 +86,8 @@ def run_ppxf( templates, log_bin_data, log_bin_error, velscale, start, goodPixel
      
         return(pp.sol[:], pp.reddening, pp.bestfit, optimal_template, mc_results, formal_error)
 
-    except:
+    except Exception:
+        _noise.log_failure('KIN', i)
         return( np.nan, np.nan, np.nan, np.nan, np.nan, np.nan )
 
 
@@ -256,6 +261,7 @@ def extractStellarKinematics(config):
     logLam   = logLam[idx_lam]
     npix     = bin_data.shape[0]
     nbins    = bin_data.shape[1]
+    noise    = _noise.sanitize( np.array( hdu[1].data.ESPEC.T )[idx_lam,:] )
     ubins    = np.arange(0, nbins)
     velscale = hdu[0].header['VELSCALE']
 
@@ -270,8 +276,12 @@ def extractStellarKinematics(config):
     templates = templates.reshape( (templates.shape[0], ntemplates) )
 
     # Last preparatory steps
-    offset = (logLam_template[0] - logLam[0])*C
-    noise  = np.ones((npix,nbins))
+    # pPXF with velscale_ratio: the reference is the centre of the first *combined*
+    # template pixel, mean(lam_temp[:velscale_ratio]) (as pPXF computes vsyst itself when
+    # given lam and lam_temp). Using logLam_template[0] biased every velocity by
+    # +velscale/(2*velscale_ratio) = +10 km/s for VELSCALE 40, ratio 2.
+    offset = C * (np.log(np.mean(np.exp(logLam_template[:velscale_ratio]))) - logLam[0])
+    #noise  = np.ones((npix,nbins)) change noise to the ESPEC
     nsims  = config['KIN']['MC_PPXF']
 
     # Initial guesses 

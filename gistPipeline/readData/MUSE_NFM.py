@@ -7,6 +7,7 @@ import logging
 from printStatus import printStatus
 
 from gistPipeline.readData import der_snr as der_snr
+from mpdaf.obj import airtovac
 
 
 
@@ -44,7 +45,8 @@ def readCube(config):
     data  = hdu[1].data
     s     = np.shape(data)
     spec  = np.reshape(data,[s[0],s[1]*s[2]])
-
+    #print("all nan?",np.all(np.any(np.isnan(spec) == True,  axis=0)))
+    #logging.info(np.any(np.isnan(spec) == True,  axis=0))
     # Read the error spectra if available. Otherwise estimate the errors with the der_snr algorithm
     if len(hdu) == 3:
         logging.info("Reading the error spectra from the cube")
@@ -57,6 +59,12 @@ def readCube(config):
             espec[:,i] = der_snr.der_snr( spec[:,i] )
 
     # Getting the wavelength info
+    if hdr['CTYPE3'] == 'AWAV':
+        awave = hdr['CRVAL3']+(np.arange(s[0]))*hdr['CD3_3']
+        wave = airtovac(awave)
+    #    print(wave)
+        print("Air wavelength detected. Converting to vacuum wavelength.")
+    #else:
     wave = hdr['CRVAL3']+(np.arange(s[0]))*hdr['CD3_3']
     
     # Getting the spatial coordinates
@@ -80,6 +88,9 @@ def readCube(config):
     lmin  = config['READ_DATA']['LMIN_TOT']
     lmax  = config['READ_DATA']['LMAX_TOT']
     idx   = np.where( np.logical_and( wave >= lmin, wave <= lmax ) )[0]
+    #logging.info(idx)
+    #logging.info(spec)
+    #logging.info(spec[idx,:])
     spec  = spec[idx,:]
     espec = espec[idx,:]
     wave  = wave[idx]

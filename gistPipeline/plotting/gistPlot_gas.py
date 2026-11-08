@@ -12,11 +12,11 @@ from matplotlib.tri import Triangulation, TriAnalyzer
 #matplotlib.use('pdf')
 #
 import matplotlib.pyplot       as     plt
-plt.style.use('ekhammer')
 from   mpl_toolkits.axes_grid1 import AxesGrid
 from   matplotlib.ticker       import MultipleLocator, FuncFormatter
 
 from plotbin.sauron_colormap import register_sauron_colormap
+from gistPipeline.plotting._plotutils import _inside_idx, _log_flux, _flux_levels
 register_sauron_colormap()
 
 # Make plotting routine python 2 and 3 compatible
@@ -34,6 +34,14 @@ PURPOSE:
   pipeline, but can also be run independently of the pipeline. 
 """
 
+
+
+def _tex_escape(s):
+    """The run name goes into a LaTeX title: escape what LaTeX treats as special (an
+    underscore in RUN_ID, e.g. 'LEDA66688bin35_v2', otherwise stops the whole figure)."""
+    for c in ('_', '%', '&', '#', '$'):
+        s = s.replace(c, '\\' + c)
+    return s
 
 def TicklabelFormatter(x, pos):
     return( "${}$".format(int(x)).replace("-", r"\textendash") )
@@ -124,8 +132,9 @@ def plot_line(val, LEVEL, FROM_PIPELINE, INTERACTIVE, SAVE_AFTER_INTERACTIVE, li
     # Plot contours
     XY_Triangulation = Triangulation(X-pixelsize/2, Y-pixelsize/2)                      # Create a mesh from a Delaunay triangulation
     XY_Triangulation.set_mask( TriAnalyzer(XY_Triangulation).get_flat_tri_mask(0.01) )  # Remove bad triangles at the border of the field-of-view
-    levels = np.arange( np.nanmin(np.log10( FLUX )) + contour_offset, np.nanmax(np.log10( FLUX )), 0.2 )
-    grid[0].tricontour(XY_Triangulation, np.log10(FLUX), levels=levels, linewidths=1, colors='k')
+    levels = _flux_levels(FLUX, contour_offset)
+    if len(levels) > 0:
+        grid[0].tricontour(XY_Triangulation, _log_flux(FLUX), levels=levels, linewidths=1, colors='k')
 
     # Label vmin and vmax
     if lineIdentifier.split('_')[-1] in ['V', 'S']: 
@@ -141,7 +150,7 @@ def plot_line(val, LEVEL, FROM_PIPELINE, INTERACTIVE, SAVE_AFTER_INTERACTIVE, li
         cax.yaxis.set_ticks([])
 
     # Set labels
-    grid[0].text(0.985, 0.975, r'\textbf{{{}}}'.format(rootname), horizontalalignment='right', verticalalignment='top', transform = grid[0].transAxes, fontsize=16)    
+    grid[0].text(0.985, 0.975, r'\textbf{{{}}}'.format(_tex_escape(rootname)), horizontalalignment='right', verticalalignment='top', transform = grid[0].transAxes, fontsize=16)    
     if lineIdentifier.split('_')[-1] == 'V':
         grid[0].text(0.02, 0.98, r'$V \mathrm{[km/s]}$',      horizontalalignment='left', verticalalignment='top', transform = grid[0].transAxes, fontsize=16)
     elif lineIdentifier.split('_')[-1] == 'S':

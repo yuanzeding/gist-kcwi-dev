@@ -1,5 +1,6 @@
 import glob
 import os
+import re
 import numpy as np
 from astropy.io import fits
 import logging
@@ -9,73 +10,71 @@ from printStatus import printStatus
 from ppxf.ppxf_util import log_rebin, gaussian_filter1d
 
 
+_NAME_Z = re.compile(r'Z([mp])(\d+\.\d+)')
+_NAME_T = re.compile(r'T(\d+\.\d+)')
+_NAME_A = re.compile(r'_E([mp])(\d\.\d\d)')
+
+
+def parse_name(fn):
+    """
+    (age [Gyr], [M/H], [alpha/Fe], alpha token) from a (E-)MILES-style file name, e.g.
+        Eun1.30Zp0.06T01.0000_iTp0.00_baseFe.fits        E-MILES, MILES-star abundances
+        Eun1.30Zp0.06T01.0000_iTp0.00_Ep0.40.fits        E-MILES / MILES alpha-variable
+        Mun1.30Zp0.06T01.0000_iPp0.00_Ep0.00.fits        MILES alpha-variable
+        Eun1.30Zp0.06T00.0010_iTp0.00_baseFe_FSPS.fits   make_fsps_ssp.py
+    baseFe (the abundance pattern of the MILES stars: ~solar at solar [M/H], alpha-
+    enhanced at low [M/H]) is listed as alpha = 0.0 with token 'baseFe'.
+    (The old parser took the leading 'E' of E-MILES names for the alpha tag.)
+    """
+    s = os.path.basename(fn)
+    z, t = _NAME_Z.search(s), _NAME_T.search(s[_NAME_Z.search(s).end():] if _NAME_Z.search(s) else s)
+    if z is None or t is None:
+        raise ValueError("not a (E-)MILES file name (Z[mp]x.xxTxx.xxxx): %s" % s)
+    metal = (-1 if z.group(1) == 'm' else 1) * float(z.group(2))
+    age = float(t.group(1))
+    a = _NAME_A.search(s)
+    if a is not None:
+        alpha = (-1 if a.group(1) == 'm' else 1) * float(a.group(2))
+        tok = 'E%s%s' % (a.group(1), a.group(2))
+    elif 'baseFe' in s:
+        alpha, tok = 0.0, 'baseFe'
+    else:
+        raise ValueError("no alpha tag (_Ep0.00 / _Ep0.40 / baseFe) in the template name %s" % s)
+    return age, metal, alpha, tok
+
+
 def age_metal_alpha(passedFiles):
     """
-    Function to extract the values of age, metallicity, and alpha-enhancement
-    from standard MILES filenames. Note that this function can automatically
-    distinguish between template libraries that do or do not include
-    alpha-enhancement. 
+    Ages, metallicities and alpha-enhancements of the template files (see parse_name):
+    returns (log10 ages, metals, alphas, per-file (iAge, iMetal, iAlpha) indices, nAges,
+    nMetal, nAlpha, ncomb). The library must be a COMPLETE grid -- every age at every
+    [M/H] and [alpha/Fe], each once -- and may not mix baseFe with Ep/Em files (baseFe
+    is not [alpha/Fe] = 0; mixing would mislabel the grid).
     """
-
-    out = np.zeros((len(passedFiles),3)); out[:,:] = np.nan
-
-    files = []
-    for i in range( len(passedFiles) ):
-        files.append( passedFiles[i].split('/')[-1] )
-
-    for num, s in enumerate(files):
-        # Ages
-        t = s.find('T')
-        age = float( s[t+1 : t+8] )
-    
-        # Metals
-        metal = s[s.find('Z')+1 : t]
-        if "m" in metal:
-            metal = -float(metal[1:])
-        elif "p" in metal:
-            metal = float(metal[1:])
-        else:
-            raise ValueError("             This is not a standard MILES filename")
-    
-        # Alpha
-        if s.find('baseFe') == -1:
-            EMILES = False
-        elif s.find('baseFe') != -1:
-            EMILES = True
-
-        if EMILES == False:
-            # Usage of MILES: There is a alpha defined
-            e = s.find('E')
-            alpha = float( s[e+2 : e+6] )
-        elif EMILES == True:
-            # Usage of EMILES: There is *NO* alpha defined
-            alpha = 0.0
-
-        out[num,:] = age, metal, alpha
-
-    Age   = np.unique( out[:,0] )
-    Metal = np.unique( out[:,1] )
-    Alpha = np.unique( out[:,2] )
-    nAges  = len(Age)
-    nMetal = len(Metal)
-    nAlpha = len(Alpha)
+    par = [parse_name(f) for f in passedFiles]
+    toks = set(p[3] for p in par)
+    if 'baseFe' in toks and len(toks) > 1:
+        raise ValueError("the template folder mixes baseFe and alpha-variable (%s) files: use one kind"
+                         % ', '.join(sorted(toks - {'baseFe'})))
+    Age = np.unique([p[0] for p in par])
+    Metal = np.unique([p[1] for p in par])
+    Alpha = np.unique([p[2] for p in par])
+    nAges, nMetal, nAlpha = len(Age), len(Metal), len(Alpha)
+    idx = [(int(np.searchsorted(Age, p[0])), int(np.searchsorted(Metal, p[1])), int(np.searchsorted(Alpha, p[2])))
+           for p in par]
+    seen = {}
+    for f, ijk in zip(passedFiles, idx):
+        if ijk in seen:
+            raise ValueError("two templates for the same age/[M/H]/[alpha/Fe]: %s and %s"
+                             % (os.path.basename(seen[ijk]), os.path.basename(f)))
+        seen[ijk] = f
     ncomb = nAges * nMetal * nAlpha
-
-    metal_str = []
-    alpha_str = []
-    for i in range( len(Metal) ):
-        if Metal[i] > 0:
-            mm = 'p'+'{:.2f}'.format(np.abs(Metal[i]))+'T'
-        elif Metal[i] < 0:
-            mm = 'm'+'{:.2f}'.format(np.abs(Metal[i]))+'T'
-        metal_str.append(mm)
-    for i in range( len(Alpha) ):
-        if EMILES == False:
-            alpha_str.append( 'Ep'+'{:.2f}'.format(Alpha[i]) )
-        elif EMILES == True:
-            alpha_str = ['baseFe']
-
-    return( np.log10(Age), Metal, Alpha, metal_str, alpha_str, nAges, nMetal, nAlpha, ncomb )
+    if len(seen) != ncomb:
+        miss = [(Age[i], Metal[k], Alpha[j]) for i in range(nAges) for k in range(nMetal) for j in range(nAlpha)
+                if (i, k, j) not in seen]
+        raise ValueError("incomplete template grid: %d of %d age x [M/H] x [alpha/Fe] combinations missing, "
+                         "e.g. %s" % (len(miss), ncomb, ', '.join('%g Gyr/%+.2f/%+.2f' % m for m in miss[:5])))
+    return np.log10(Age), Metal, Alpha, idx, nAges, nMetal, nAlpha, ncomb
 
 
 def prepareSpectralTemplateLibrary(config, lmin, lmax, velscale, LSF_Data, LSF_Templates, sortInGrid):
@@ -167,7 +166,7 @@ def prepareSpectralTemplateLibrary(config, lmin, lmax, velscale, LSF_Data, LSF_T
     elif sortInGrid == True:
 
         # Extract ages, metallicities and alpha from the templates
-        logAge, metal, alpha, metal_str, alpha_str, nAges, nMetal, nAlpha, ncomb = age_metal_alpha(sp_models)
+        logAge, metal, alpha, idx, nAges, nMetal, nAlpha, ncomb = age_metal_alpha(sp_models)
 
         templates          = np.zeros((sspNew.size, nAges, nMetal, nAlpha))
         templates[:,:,:,:] = np.nan
@@ -177,28 +176,28 @@ def prepareSpectralTemplateLibrary(config, lmin, lmax, velscale, LSF_Data, LSF_T
         metal_grid  = np.empty((nAges, nMetal, nAlpha))
         alpha_grid  = np.empty((nAges, nMetal, nAlpha))
     
-        # Sort the templates in the cube of age, metal, alpha
-        # This sorts for alpha
-        for i, a in enumerate(alpha_str):
-            # This sorts for metals
-            for k, mh in enumerate(metal_str):
-                files = [s for s in sp_models if (mh in s and a in s)]
-                # This sorts for ages
-                for j, filename in enumerate(files):
-                    hdu = fits.open(filename)
-                    ssp = np.squeeze(hdu[0].data)[idx_lam]
-                    ssp = gaussian_filter1d(ssp, sigma)
-                    sspNew, logLam2, _ = log_rebin(lamRange_spmod, ssp, velscale=velscale)
-    
-                    logAge_grid[j, k, i] = logAge[j]
-                    metal_grid[j, k, i]  = metal[k]
-                    alpha_grid[j, k, i]  = alpha[i]
-    
-                    # Normalise templates for light-weighted results
-                    if config['PREPARE_TEMPLATES']['NORM_TEMP'] == 'LIGHT':
-                        templates[:, j, k, i] = sspNew / np.mean(sspNew)
-                    else:
-                        templates[:, j, k, i] = sspNew 
+        # Sort the templates in the cube of age, metal, alpha (by the values in the
+        # file names, not by the order of the files)
+        for filename, (j, k, i) in zip(sp_models, idx):
+            hdu = fits.open(filename)
+            h = hdu[0].header
+            if (h['CRVAL1'], h['CDELT1'], h['NAXIS1']) != (ssp_head['CRVAL1'], ssp_head['CDELT1'], ssp_head['NAXIS1']):
+                raise ValueError("%s is not on the wavelength grid of %s (CRVAL1/CDELT1/NAXIS1): all templates "
+                                 "of a library must share one grid" % (os.path.basename(filename),
+                                                                       os.path.basename(sp_models[0])))
+            ssp = np.squeeze(hdu[0].data)[idx_lam]
+            ssp = gaussian_filter1d(ssp, sigma)
+            sspNew, logLam2, _ = log_rebin(lamRange_spmod, ssp, velscale=velscale)
+
+            logAge_grid[j, k, i] = logAge[j]
+            metal_grid[j, k, i]  = metal[k]
+            alpha_grid[j, k, i]  = alpha[i]
+
+            # Normalise templates for light-weighted results
+            if config['PREPARE_TEMPLATES']['NORM_TEMP'] == 'LIGHT':
+                templates[:, j, k, i] = sspNew / np.mean(sspNew)
+            else:
+                templates[:, j, k, i] = sspNew 
     
         # Normalise templates for mass-weighted results
         if config['PREPARE_TEMPLATES']['NORM_TEMP'] == 'MASS':
