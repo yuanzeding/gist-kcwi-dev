@@ -17,6 +17,11 @@ cubes_wcs.fits; *.bak* files are never sent). --lists also sends NAME*.list / .p
 Symbolic links (apply --stack links the _vcubes/_mcubes) are sent as the files they
 point to.
 
+--covar sends the kcwi_covar curves (covar_mock/curves/covar_*.txt) to <ROOT>/covar/,
+where gist_prep finds them by cube name (SPATIAL_BINNING COV_FILE = auto):
+    python kcwi_sync_bifrost.py --covar                 # curves only
+    python kcwi_sync_bifrost.py --all --covar           # stacks and curves
+
 Where it goes: <ROOT>/<FOLDER>/gist-KCWI/inputData on <HOST>. FOLDER is found, in order:
   1. --map FILE   lines 'NAME FOLDER' (e.g. 'LEDA66688-final LEDA66688')
   2. the bifrost folder that already holds NAME's cubes (one ssh call lists them all)
@@ -132,9 +137,31 @@ def main():
     ap.add_argument('--lists', action='store_true', help='also send NAME*.list / .par')
     ap.add_argument('--create', action='store_true', help='make <ROOT>/NAME/gist-KCWI/inputData for sources with no folder')
     ap.add_argument('-n', '--dry-run', action='store_true', help='show what would be sent, send nothing')
+    ap.add_argument('--covar', nargs='?', const='covar_mock/curves', metavar='DIR',
+                    help='also send the kcwi_covar curves (covar_*.txt in DIR, default <stackdir>/covar_mock/curves) '
+                         'to <ROOT>/covar/ on the host, the folder gist_prep reads them from (COV_FILE = auto)')
     a = ap.parse_args()
     global RSYNC, RSYNC_FLAGS
     RSYNC, RSYNC_FLAGS = find_rsync()
+
+    if a.covar is not None:
+        cdir = a.covar if os.path.isabs(a.covar) else os.path.join(a.stackdir, a.covar)
+        curves = sorted(glob.glob(os.path.join(cdir, 'covar_*.txt')))
+        if not curves:
+            sys.exit('no covar_*.txt in %s' % cdir)
+        dest = '%s/covar/' % a.root
+        print('%d covariance curves from %s -> %s:%s' % (len(curves), cdir, a.host, dest))
+        if not a.dry_run:
+            remote(a.host, 'mkdir -p %s' % shlex.quote(dest))
+        cmd = [RSYNC] + RSYNC_FLAGS + (['-n'] if a.dry_run else [])
+        if a.host != 'local':
+            cmd += ['-e', 'ssh ' + ' '.join(ssh_opts())]
+        cmd += curves + [dest if a.host == 'local' else '%s:%s' % (a.host, dest)]
+        if subprocess.run(cmd).returncode != 0:
+            sys.exit('rsync of the covariance curves failed')
+        if not (a.names or a.sources or a.all):
+            print('\ndone%s' % (' (dry run: nothing sent)' if a.dry_run else ''))
+            return
 
     names = list(a.names)
     if a.sources:

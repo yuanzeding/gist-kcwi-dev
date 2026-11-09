@@ -12,10 +12,13 @@ one template folder with E-MILES and extend it below its 30 Myr floor.
 Needs python-fsps (and SPS_HOME pointing to the FSPS data, ~/software/fsps here), so it
 runs in its own environment, not in gist-dev (python-fsps needs a newer Python):
     conda create -n fsps python=3.11 numpy astropy matplotlib -y && conda activate fsps
-    export SPS_HOME=~/software/fsps && pip install fsps
+    export SPS_HOME=~/software/fsps
+    FFLAGS="-DC3K_LR=0 -DMILES=1" pip install --no-binary fsps fsps
+(python-fsps >= 0.5 builds C3K_LR, low resolution, by default: the FFLAGS switch it to
+MILES; this script refuses a build without MILES.)
 
-The FSPS set-up (python-fsps default build: MIST isochrones + MILES stellar library,
-WMBasic hot stars above 25 kK, Wolf-Rayet spectra):
+The FSPS set-up (MIST isochrones + MILES stellar library, WMBasic hot stars above 25 kK,
+Wolf-Rayet spectra):
   * SSPs (sfh = 0), Salpeter IMF with the E-MILES mass limits 0.1-100 Msun
     (imf_type = 0, imf_lower_limit = 0.1, imf_upper_limit = 100)
   * no nebular emission or continuum, no dust: the gas is fitted (or masked) by GIST,
@@ -100,7 +103,9 @@ def make_sp():
         print('FSPS libraries:', libs)
         lb = [x.decode() if isinstance(x, bytes) else str(x) for x in libs]
         if not any('miles' in x.lower() for x in lb):
-            sys.exit('this python-fsps was not built with the MILES library: the optical would be low resolution')
+            sys.exit('this python-fsps was not built with the MILES library (libraries %s): the optical would be '
+                     'low resolution. Rebuild: pip uninstall fsps; FFLAGS="-DC3K_LR=0 -DMILES=1" pip install '
+                     '--no-binary fsps --no-cache-dir fsps' % (lb,))
     return sp
 
 

@@ -102,7 +102,7 @@ MODULES = [
         ('PARALLEL', 'True', 'multiprocessing'),
         ('NCPU', '24', 'worker processes'),
         ('LSF_DATA', 'lsf_KCWI_BR', 'line-spread function of the data (in configFiles/)'),
-        ('LSF_TEMP', 'lsf_XSL', 'line-spread function of the templates'),
+        ('LSF_TEMP', 'lsf_XSL', 'line-spread function of the (KIN) templates: a file in configFiles/ or, if not there, in [prep] template_dir'),
         ('OW_CONFIG', 'True', 'ignore the CONFIG saved by an earlier run of this RUN_ID'),
         ('OW_OUTPUT', 'True', 'overwrite outputs (partial re-runs: run_gist.py --redo)'),
     ]),
@@ -131,27 +131,28 @@ MODULES = [
     ]),
     ('SPATIAL_BINNING', [
         ('METHOD', 'hierarchical', 'hierarchical or voronoi (the keys below SB_TOL: hierarchical only)'),
-        ('TARGET_SNR', '35', ''),
-        ('COVARIANCE', '0.5', 'S/N /= COV_C (1 + COVARIANCE log10 N), N capped at COV_NMAX; measure with '
+        ('TARGET_SNR', '25', ''),
+        ('COVARIANCE', '0.3', 'S/N /= COV_C (1 + COVARIANCE log10 N), N capped at COV_NMAX; measure with '
                               'kcwi_covar (mock-noise stacks) or gist_snrcheck (also used by the spectral test)'),
         ('COV_C', '1.0', 'noise of ONE spaxel / the variance cube (kcwi_covar measures it); 1 = trust the cube'),
         ('COV_NMAX', 'None', 'N beyond which the noise stops growing (correlation length reached; kcwi_covar); '
                              'None = never'),
-        ('COV_FILE', 'None', 'measured curve N, ratio (kcwi_covar measure writes covar_<name>.txt; copy it to '
-                             'configFiles/): used INSTEAD of COVARIANCE/COV_C/COV_NMAX'),
+        ('COV_FILE', 'auto', 'measured curve N, ratio (kcwi_covar), used INSTEAD of COVARIANCE/COV_C/COV_NMAX; '
+                             'auto = covar_<cube>.txt of the S/N-window channel from [prep] cov_dir (none there: '
+                             'the three numbers); a file name = in configFiles/ or an absolute path; None = off'),
         ('SB_TOL', '0.1', 'SB difference allowed in a merge [dex]; smaller = closer to isophotes'),
         ('SB_RMS', 'None', 'max rms of log SB inside a bin [dex]; None = SB_TOL/2, 0 = off'),
         ('COMPACT', '0.3', 'weight of the compactness penalty'),
         ('MAX_ELONG', '2.5', 'max rms radius / that of a disc of the same area'),
-        ('MAX_DPA', '0', 'max position-angle span seen from ORIGIN [deg]; 0 = off (45-60 for KIN)'),
+        ('MAX_DPA', '60', 'max position-angle span seen from ORIGIN [deg]; 0 = off (45-60 for KIN)'),
         ('CORE_RADIUS', '1.0', '[arcsec] MAX_DPA not applied inside this radius'),
         ('SB_FWHM', '3', 'smoothing of the SB map [spaxels]'),
         ('MIN_SNR_FRAC', '0.5', 'leftovers below this x TARGET_SNR are absorbed by a neighbour'),
-        ('SPEC_Z', '0', '> 0 (e.g. 3): refuse merges whose spectra differ beyond the noise'),
+        ('SPEC_Z', '3', '> 0 (e.g. 3): refuse merges whose spectra differ beyond the noise'),
         ('SPEC_WEIGHT', '0', '> 0: spectral difference also added to the merge cost'),
         ('SPEC_LMIN', 'None', 'rest-frame range of the spectral term; None = whole spectrum'),
         ('SPEC_LMAX', 'None', ''),
-        ('SPEC_FEATURES', 'None', 'stellar features compared: stellar (= CaHK,Hd,Gband,Fe4383,Hb,Mgb,'
+        ('SPEC_FEATURES', 'stellar', 'stellar features compared: stellar (= CaHK,Hd,Gband,Fe4383,Hb,Mgb,'
                                   'Fe52,CaT) or a list of those (+NaD); None = SPEC_WINDOWS / whole range'),
         ('SPEC_MAXMASK', '0.5', 'a feature/window more than this fraction masked (sky, lines) or '
                                 'without data is left out'),
@@ -169,19 +170,19 @@ MODULES = [
     ]),
     ('PREPARE_TEMPLATES', [
         ('METHOD', 'xsl_lin', 'template reader in prepareTemplates/'),
-        ('LIBRARY', 'XSL/', 'template folder, relative to templateDir'),
+        ('LIBRARY', 'XSL/Salpeter/', 'KIN template folder, relative to [prep] template_dir (the shared library)'),
         ('NORM_TEMP', 'LIGHT', 'LIGHT or MASS weighted results'),
     ]),
     ('KIN', [
         ('METHOD', 'ppxf', 'False = off'),
         ('SPEC_MASK', 'auto', 'auto = specMask_KIN_<tag> (written by gist_prep)'),
-        ('LMIN', '8400', 'rest-frame fit range [A] (clipped to the data)'),
-        ('LMAX', '8600', ''),
+        ('LMIN', '3750', 'rest-frame fit range [A] (clipped to the data)'),
+        ('LMAX', '5350', ''),
         ('SIGMA', '100', 'initial velocity dispersion [km/s]'),
-        ('MOM', '4', 'kinematic moments'),
-        ('ADEG', '-1', 'additive Legendre degree (-1 = none)'),
-        ('MDEG', '4', 'multiplicative Legendre degree (0 = none)'),
-        ('REDDENING', '0.0878', 'initial E(B-V) to fit the stellar reddening, or None'),
+        ('MOM', '2', 'kinematic moments'),
+        ('ADEG', '4', 'additive Legendre degree (-1 = none)'),
+        ('MDEG', '6', 'multiplicative Legendre degree (0 = none)'),
+        ('REDDENING', 'None', 'initial E(B-V) to fit the stellar reddening, or None'),
         ('MC_PPXF', '0', 'Monte-Carlo realisations for the errors'),
     ]),
     ('GAS', [
@@ -198,30 +199,30 @@ MODULES = [
     ('SFH', [
         ('METHOD', 'ppxf', 'False = off'),
         ('LMIN', '3650', 'rest-frame fit range [A] (clipped to the data)'),
-        ('LMAX', '8674', ''),
+        ('LMAX', '5350', 'blue only: E-MILES 2.51 A; the red adds sky and little age information'),
         ('SPEC_MASK', 'auto', 'auto = specMask_SFH_<tag>'),
-        ('MOM', '4', ''),
-        ('MDEG', '4', ''),
-        ('REGUL_ERR', '0.01', 'regularisation error; auto = chosen per bin by Delta chi2 = sqrt(2 N_good); '
+        ('MOM', '2', ''),
+        ('MDEG', '8', '~1 per 200 A (Zhuang+24 / alf); dusty targets: test 6 vs 10'),
+        ('REGUL_ERR', '0.0002', 'RECALIBRATE per library/target with gist_regul; regularisation error; auto = chosen per bin by Delta chi2 = sqrt(2 N_good); '
                               'tools/gist_regul.py finds a value on a finished run'),
         ('NOISE', '1.', ''),
         ('FIXED', 'True', 'kinematics fixed to the KIN results'),
         ('NOISE_RESCALE', 'True', 'rescale the noise to chi2/DOF = 1 before the regularised fit'),
-        ('GAS_LINES', 'None', 'emission lines fitted WITH the stars (unmasked in specMask_SFH): forbidden '
+        ('GAS_LINES', 'forbidden,balmer_tied,helium', 'emission lines fitted WITH the stars (unmasked in specMask_SFH): forbidden '
                               '([OII],[NeIII],[SII],[OIII],[FeIII],[NI],[OI],[NII],[ArIII]); +balmer_tied (Case-B '
                               'series, one flux) or +balmer (free lines) and +helium -- narrow lines only; '
                               'None = all masked'),
         ('GAS_VMAX', '1000', '|V_gas - V_star| limit [km/s]'),
-        ('GAS_SIGMAX', '1000', 'sigma_gas upper limit [km/s]'),
+        ('GAS_SIGMAX', '600', 'sigma_gas upper limit [km/s]'),
         ('GAS_SIGMA0', 'None', 'starting sigma_gas [km/s]; None = max(100, 3 VELSCALE)'),
         ('GAS_RATIOS', 'True', 'keep [OII], [SII], [NI] doublet ratios and a free Balmer decrement inside their '
                                'physical range'),
-        ('GAS_REDDENING', 'None', 'start A_V of the gas (fitted, Calzetti curve) -- only with balmer_tied, '
+        ('GAS_REDDENING', '0.5', 'start A_V of the gas (fitted, Calzetti curve) -- only with balmer_tied, '
                                   'whose Case-B series constrains it; None = not fitted'),
-        ('TEMPLATES', 'None', 'template reader for the SFH fit only (e.g. miles); None = PREPARE_TEMPLATES METHOD'),
-        ('LIBRARY', 'None', 'template folder for the SFH fit only (e.g. EMILES_BASTI_UN/); None = '
-                            'PREPARE_TEMPLATES LIBRARY'),
-        ('LSF_TEMP', 'None', 'LSF file of that library (e.g. lsf_MILES); None = GENERAL LSF_TEMP'),
+        ('TEMPLATES', 'miles', 'template reader for the SFH fit only; None = PREPARE_TEMPLATES METHOD'),
+        ('LIBRARY', 'EMILES_BASTI_UN1.30_baseFe_dex0.1/', 'SFH template folder (get_ssp), relative to [prep] '
+                            'template_dir; None = PREPARE_TEMPLATES LIBRARY'),
+        ('LSF_TEMP', 'lsf_MILES', 'LSF file of that library (configFiles/, else template_dir); None = GENERAL LSF_TEMP'),
         ('MATCH_RES', 'auto', 'templates broader than the data (E-MILES 2.51 A vs KCWI blue): degrade the data '
                               'to their LSF; auto = when needed, False = stop instead'),
         ('BOOTSTRAP', '0', 'wild-bootstrap refits per bin for the errors of <log age>, [M/H], [alpha/Fe] '
@@ -263,7 +264,7 @@ EXAMPLE_PREP = """\
 
 [prep]
 input       = inputData/IRAS03582+6012    # cube base name (red channel = <input>-red)
-suffix_blue =            # blue stack = <input><suffix_blue>, e.g. _skl (kcwi_skylevel); empty = none
+suffix_blue = _skl       # blue stack = <input><suffix_blue>, e.g. _skl (kcwi_skylevel); empty = none
 suffix_red  =            # red stack  = <input><suffix_red>-red
 z           = 0.030
 tag         = v4                          # suffix of every file written
@@ -277,7 +278,7 @@ plot        = true       # masks_<tag>.png and origin_<tag>.png
 # --- masks
 line_hw     = 500        # emission-line half-width [km/s]
 broad       =            # lines masked with broad_hw, e.g. Hb,Ha,Hg,Hd (type-1 nucleus)
-broad_hw    = 3000       # [km/s]
+broad_hw    = 1500       # [km/s]
 drop        =            # lines NOT to mask, e.g. NaD
 extra       =            # extra rest-frame intervals, e.g. 8432-8459,8567-8631
 sky         = variance   # variance: measured in the cube -- mask where sky lines raise the variance of
@@ -291,18 +292,24 @@ sky_hw      = 4          # [A, observed] half-width for sky = list and for sky_f
 # sky_file  =            # more observed-frame sky lines, one per line
 no_sky      = false
 no_telluric = false
-gap_pad     = 5          # [A] added on each side of the dichroic gap
+gap_pad     = 10         # [A] added on each side of the dichroic gap
 gas_protect = 500        # [km/s] no sky mask this close to a fitted GAS line
 header_only = false      # gap from the WAVGOOD headers instead of the reader
 # --- S/N window (READ_DATA LMIN_SNR/LMAX_SNR = auto picks one; SNR_MASK keeps lines out of it)
 snr_line_hw = 1000       # [km/s] emission lines kept out of the S/N (broad lines: broad_hw)
 no_snr_mask = false      # true: no specMask_SNR_<tag>
-snr_auto    = any        # channel for LMIN_SNR = auto: blue, red or any
+snr_auto    = red        # channel for LMIN_SNR = auto: blue, red or any
 snr_width   = 300        # [A] width of the S/N windows considered
 # --- Galactic extinction (READ_DATA EBV = auto)
 ebv_dir     =            # folder with SFD_dust_4096_ngp/sgp.fits; empty = $SFD_DIR, ~/software/dustmaps/sfd,
                          #   or software/dustmaps/sfd next to gist-development
 ebv_scale   = 0.86       # x SFD (Schlafly & Finkbeiner 2011); 1 = original SFD
+# --- template libraries (shared by every target)
+template_dir = ~/software/SSP   # written as templateDir into configFiles/defaultDir; PREPARE_TEMPLATES / SFH
+                         #   LIBRARY are relative to it; LSF_TEMP files not in configFiles/ are taken from it
+# --- covariance curves (SPATIAL_BINNING COV_FILE = auto)
+cov_dir     =            # folder with every covar_<cube>.txt (kcwi_covar; kcwi_sync_bifrost --covar sends them);
+                         #   empty = $GIST_COV_DIR, else ~/multiAGN/covar
 """
 
 
@@ -312,7 +319,7 @@ def example_par():
         out.append('\n[%s]\n' % mod)
         for k, v, c in items:
             line = '%-13s = %s' % (k, v)
-            out.append((line.ljust(30) + ('# ' + c if c else '')).rstrip() + '\n')
+            out.append(((line.ljust(30) if len(line) < 29 else line + '   ') + ('# ' + c if c else '')).rstrip() + '\n')
     return ''.join(out)
 
 
@@ -607,6 +614,114 @@ def _load_aux(name):
 
 def _load_gaslines():
     return _load_aux('gaslines')
+
+
+def set_template_dir(a):
+    """templateDir of configFiles/defaultDir = [prep] template_dir (the file is created if missing)."""
+    tdir = os.path.abspath(os.path.expanduser(a.template_dir))
+    fn = os.path.join(a.configdir, 'defaultDir')
+    lines = open(fn).read().splitlines() if os.path.isfile(fn) else \
+        ['inputDir=./inputData', 'outputDir=./results', 'configDir=./configFiles']
+    out, done, old = [], False, None
+    for l in lines:
+        if l.strip().startswith('templateDir'):
+            old = l.split('=', 1)[1].strip() if '=' in l else None
+            out.append('templateDir=' + tdir); done = True
+        else:
+            out.append(l)
+    if not done:
+        out.append('templateDir=' + tdir)
+    if old != tdir:
+        with open(fn, 'w') as f:
+            f.write('\n'.join(out) + '\n')
+        print('%s: templateDir = %s%s' % (fn, tdir, '' if old is None else ' (was %s)' % old))
+    if not os.path.isdir(tdir):
+        raise SystemExit('template_dir %s does not exist' % tdir)
+    return tdir
+
+
+def check_templates(a, mods, get, put):
+    """The KIN and SFH libraries must exist under template_dir (GIST joins LIBRARY to templateDir);
+    an LSF_TEMP that is not in configFiles/ but in template_dir is written as an absolute path."""
+    tdir = os.path.abspath(os.path.expanduser(a.template_dir))
+    import glob as _glob
+    for mod, key in (('PREPARE_TEMPLATES', 'LIBRARY'), ('SFH', 'LIBRARY')):
+        lib = get(mod, key)
+        if mod not in mods or _unset(lib) or (mod == 'SFH' and _unset(get('SFH', 'METHOD'))):
+            continue
+        if not str(lib).endswith('/'):
+            lib = str(lib) + '/'
+            put(mod, key, lib)
+        path = os.path.join(tdir, os.path.expanduser(str(lib)))
+        n = len(_glob.glob(path + '*.fits'))
+        if n == 0:
+            raise SystemExit('%s %s: no .fits templates in %s (template_dir %s)' % (mod, key, path, tdir))
+        print('%s %s = %s: %d templates in %s' % (mod, key, lib, n, os.path.normpath(path)))
+    for mod, key in (('GENERAL', 'LSF_TEMP'), ('SFH', 'LSF_TEMP'), ('GENERAL', 'LSF_DATA')):
+        v = get(mod, key)
+        if mod not in mods or _unset(v):
+            continue
+        v = os.path.expanduser(str(v))
+        if os.path.isabs(v):
+            if not os.path.isfile(v):
+                print('WARNING: %s %s = %s not found' % (mod, key, v))
+            put(mod, key, v)
+            continue
+        if os.path.isfile(os.path.join(a.configdir, v)):
+            continue
+        if os.path.isfile(os.path.join(tdir, v)):
+            put(mod, key, os.path.join(tdir, v))
+            print('%s %s = %s (from template_dir)' % (mod, key, os.path.join(tdir, v)))
+        else:
+            print('WARNING: %s %s = %s is neither in %s nor in %s' % (mod, key, v, a.configdir, tdir))
+
+
+def cov_dirs(a):
+    """Where COV_FILE = auto looks for the curves, in order."""
+    out = [a.cov_dir] if a.cov_dir else []
+    if os.environ.get('GIST_COV_DIR'):
+        out.append(os.environ['GIST_COV_DIR'])
+    out.append('~/multiAGN/covar')
+    return [os.path.abspath(os.path.expanduser(d)) for d in out]
+
+
+def covariance_curve(a, ch, z, s0, s1):
+    """
+    COV_FILE = auto: the kcwi_covar curve of the channel in which the S/N window (rest
+    s0-s1) lies -- the S/N, and so the covariance correction of the binning, comes from
+    that channel's cube. kcwi_covar names a curve after its stack list, i.e. the cube:
+    covar_<input><suffix_blue>.txt (blue) or covar_<input><suffix_red>-red.txt (red).
+    Returns the absolute path, or 'None' (with a warning: the binning then uses
+    COVARIANCE / COV_C / COV_NMAX).
+    """
+    lo, hi = s0 * (1 + z), s1 * (1 + z)
+    over = dict((l, max(0., min(hi, ch[l]['w1']) - max(lo, ch[l]['w0']))) for l in ('blue', 'red'))
+    chan = max(over, key=over.get)
+    if over['blue'] > 0 and over['red'] > 0:
+        print('NOTE: the S/N window %g-%g A rest spans both channels; the %s curve is used' % (s0, s1, chan))
+    name = os.path.basename(a.input)
+    cube = name + (a.suffix_blue if chan == 'blue' else a.suffix_red + '-red')
+    want = ['covar_%s.txt' % cube]
+    # a curve measured on the other version of the same stack (with/without suffix) is the next best:
+    # the covariance depends on the geometry and stacking, not on the sky-level correction
+    alt = 'covar_%s.txt' % (name if chan == 'blue' else name + '-red')
+    if alt not in want:
+        want.append(alt)
+    dirs = cov_dirs(a)
+    for d in dirs:
+        for k, w in enumerate(want):
+            fn = os.path.join(d, w)
+            if os.path.isfile(fn):
+                t = np.atleast_2d(np.genfromtxt(fn, comments='#'))
+                print('SPATIAL_BINNING COV_FILE = %s (%s channel, which holds the S/N window %g-%g A rest; '
+                      'ratio %.2f at N=%d ... %.2f at N=%d)%s' % (fn, chan, s0, s1, t[0, 1], t[0, 0], t[-1, 1], t[-1, 0],
+                                                                 '' if k == 0 else ' -- NOTE: not %s itself' % want[0]))
+                return fn
+    near = sorted(set(f for d in dirs if os.path.isdir(d) for f in os.listdir(d)
+                      if f.startswith('covar_' + name)))
+    print('WARNING: COV_FILE = auto: no %s in %s%s; the binning uses COVARIANCE/COV_C/COV_NMAX instead'
+          % (' or '.join(want), ', '.join(dirs), ' (there: %s)' % ', '.join(near) if near else ''))
+    return 'None'
 
 
 def galactic_ebv(a, ch, law='f99'):
@@ -1055,6 +1170,14 @@ def make_config(a, z, ch, gap, names, iv=()):
         raise SystemExit('READ_DATA EBV = %s and GAS EBmV = %s: the reader already removes the Galactic '
                          'extinction; set GAS EBmV = None' % (ebv, get('GAS', 'EBmV')))
 
+    # 7. template libraries in the shared folder, LSF files from configFiles/ or from there
+    check_templates(a, mods, get, put)
+
+    # 8. covariance curve of the channel that carries the S/N window
+    if 'SPATIAL_BINNING' in mods and _is_auto(get('SPATIAL_BINNING', 'COV_FILE')) \
+            and get('SPATIAL_BINNING', 'COV_FILE') is not None:
+        put('SPATIAL_BINNING', 'COV_FILE', covariance_curve(a, ch, z, s0, s1))
+
     left = ['%s %s' % (m, k) for m, items in row for k, v in items
             if _is_auto(v) and v is not None and (m, k) not in RUNTIME_AUTO]
     if left:
@@ -1225,7 +1348,7 @@ def check_binning(row, mods, get, iv=(), snr_iv=(), lo_d=None, hi_d=None):
     if not _unset(cfile):
         fn = cfile if os.path.isabs(str(cfile)) else os.path.join(a_configdir[0], str(cfile))
         if not os.path.isfile(fn):
-            print('ERROR: SPATIAL_BINNING COV_FILE %s not found (it is read from configFiles/)' % fn)
+            print('ERROR: SPATIAL_BINNING COV_FILE %s not found (a bare name is read from configFiles/)' % fn)
         else:
             t = np.atleast_2d(np.genfromtxt(fn, comments='#'))
             print('covariance: measured curve %s, ratio %.3f (N=%d) ... %.3f (N=%d); COVARIANCE/COV_C/COV_NMAX '
@@ -1395,7 +1518,7 @@ def main():
     ap.add_argument('--header-only', action='store_true', help='gap from WAVGOOD keywords instead of the reader')
     ap.add_argument('--line-hw', type=float, default=500., help='half-width of line masks [km/s] (default 500)')
     ap.add_argument('--broad', default='', help='comma list of line names masked with --broad-hw (e.g. Hb,Ha)')
-    ap.add_argument('--broad-hw', type=float, default=3000., help='half-width for --broad lines [km/s]')
+    ap.add_argument('--broad-hw', type=float, default=1500., help='half-width for --broad lines [km/s]')
     ap.add_argument('--drop', default='', help='comma list of line names not to mask (e.g. NaD)')
     ap.add_argument('--lines-from-emi', action='store_true', help="mask the 'f' lines of --emi instead of the built-in list")
     ap.add_argument('--sky', choices=['variance', 'model', 'list', 'none'], default='variance',
@@ -1416,7 +1539,7 @@ def main():
     ap.add_argument('--sky-file', help='extra observed-frame sky lines, one wavelength per line (+- sky_hw)')
     ap.add_argument('--no-sky', action='store_true')
     ap.add_argument('--no-telluric', action='store_true', help='do not mask the O2 A/B bands')
-    ap.add_argument('--gap-pad', type=float, default=5., help='rest-frame A added on each side of the gap')
+    ap.add_argument('--gap-pad', type=float, default=10., help='rest-frame A added on each side of the gap')
     ap.add_argument('--snr-line-hw', type=float, default=1000., help='S/N mask: emission-line half-width [km/s] '
                     '(broad lines keep --broad-hw; default 1000)')
     ap.add_argument('--no-snr-mask', action='store_true', help='do not write specMask_SNR_<tag> / set READ_DATA SNR_MASK')
@@ -1427,6 +1550,10 @@ def main():
                     '(SFD_dust_4096_ngp.fits, _sgp.fits)')
     ap.add_argument('--ebv-scale', type=float, default=0.86, help='READ_DATA EBV = auto: E(B-V) = this x SFD '
                     '(default 0.86, Schlafly & Finkbeiner 2011)')
+    ap.add_argument('--template-dir', default='~/software/SSP', help='shared template folder: templateDir of '
+                    'configFiles/defaultDir; LIBRARY values are relative to it (default ~/software/SSP)')
+    ap.add_argument('--cov-dir', default='', help='SPATIAL_BINNING COV_FILE = auto: folder with the kcwi_covar '
+                    'curves covar_<cube>.txt (default $GIST_COV_DIR, else ~/multiAGN/covar)')
     ap.add_argument('--extra', default='', help='extra rest-frame intervals, e.g. 8432-8459,8567-8631')
     ap.add_argument('--emi', help='GandALF emissionLines.config to copy for the GAS module')
     ap.add_argument('--gas-protect', type=float, default=500., help='GAS: no sky/telluric mask within this many km/s of a fitted line')
@@ -1510,6 +1637,7 @@ def main():
               ', '.join('%s %s' % (n, l) for _, n, l in ign) or 'none'))
 
     if not a.no_config:
+        set_template_dir(a)
         print('wrote', make_config(a, z, ch, gap, names, iv))
 
     if a.plot and getattr(a, '_sky_R', None):

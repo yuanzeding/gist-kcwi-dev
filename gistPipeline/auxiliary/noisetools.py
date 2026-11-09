@@ -135,6 +135,9 @@ def covariance_options(sb, config_dir=None):
         return float(v)
     table = None
     f = sb.get('COV_FILE', None)
+    if f is not None and str(f).strip().lower() == 'auto':
+        raise ValueError("SPATIAL_BINNING COV_FILE = auto is resolved by gist_prep (from its cov_dir): rerun "
+                         "gist_prep, or give the curve file")
     if f is not None and f is not False and str(f).strip().lower() not in ('', 'none', 'false'):
         fn = f if (os.path.isabs(str(f)) or config_dir is None) else os.path.join(config_dir, str(f))
         table = read_cov_table(fn)
